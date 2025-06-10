@@ -9,7 +9,26 @@ class AdvancedTypingChecker {
   }
 
   getWords(text) {
+    // Split by whitespace but preserve punctuation with words
     return text.split(/\s+/).filter((word) => word.trim() !== "");
+  }
+
+  normalizeWord(word) {
+    // Remove leading/trailing punctuation for comparison but keep internal punctuation
+    return word.replace(/^[^\w]+|[^\w]+$/g, "").toLowerCase();
+  }
+
+  wordsMatch(word1, word2) {
+    // Compare normalized versions
+    const norm1 = this.normalizeWord(word1);
+    const norm2 = this.normalizeWord(word2);
+    return norm1 === norm2;
+  }
+
+  // New method to check if a word is a single character repetition
+  isSingleCharacterRepetition(word) {
+    const normalized = this.normalizeWord(word);
+    return normalized.length === 1;
   }
 
   log(message) {
@@ -63,8 +82,8 @@ class AdvancedTypingChecker {
     // Step 1: Check for extra spaces
     results.extraSpaces = this.countExtraSpaces();
 
-    // Step 2: Advanced word matching
-    this.performAdvancedMatching(results);
+    // Step 2: Improved word matching with single character repetition handling
+    this.performSmartMatching(results);
 
     // Step 3: Calculate character accuracy
     results.characterAccuracy = this.calculateCharacterAccuracy();
@@ -94,7 +113,33 @@ class AdvancedTypingChecker {
     return extraSpaces;
   }
 
-  performAdvancedMatching(results) {
+  performSmartMatching(results) {
+    // Create frequency maps for better matching
+    const originalWordFreq = new Map();
+    const typedWordFreq = new Map();
+
+    // Count word frequencies in normalized form
+    this.originalWords.forEach((word, index) => {
+      const normalized = this.normalizeWord(word);
+      if (!originalWordFreq.has(normalized)) {
+        originalWordFreq.set(normalized, []);
+      }
+      originalWordFreq.get(normalized).push(index);
+    });
+
+    this.typedWords.forEach((word, index) => {
+      const normalized = this.normalizeWord(word);
+      if (!typedWordFreq.has(normalized)) {
+        typedWordFreq.set(normalized, []);
+      }
+      typedWordFreq.get(normalized).push(index);
+    });
+
+    // Track matched words
+    const originalMatched = new Array(this.originalWords.length).fill(false);
+    const typedMatched = new Array(this.typedWords.length).fill(false);
+
+    // Phase 1: Sequential matching with single character repetition detection
     let originalIndex = 0;
     let typedIndex = 0;
 
@@ -105,128 +150,242 @@ class AdvancedTypingChecker {
       const originalWord = this.originalWords[originalIndex];
       const typedWord = this.typedWords[typedIndex];
 
-      this.log(`\nComparing: "${originalWord}" vs "${typedWord}"`);
-
-      // Exact match
-      if (originalWord === typedWord) {
-        this.log("✓ Exact match");
-        this.markAsCorrect(originalIndex, typedIndex, results);
-        originalIndex++;
-        typedIndex++;
-        continue;
-      }
-
-      // Case difference match
-      if (originalWord.toLowerCase() === typedWord.toLowerCase()) {
-        this.log("✓ Case difference match");
-        this.markAsCaseError(originalIndex, typedIndex, results);
-        originalIndex++;
-        typedIndex++;
-        continue;
-      }
-
-      // Check for word reversal (swap)
-      if (this.checkForReversal(originalIndex, typedIndex, results)) {
-        originalIndex += 2;
-        typedIndex += 2;
-        continue;
-      }
-
-      // Check if typed word appears later in original (skip/missing word scenario)
-      const futureMatch = this.findWordInOriginal(typedWord, originalIndex + 1);
-      if (futureMatch !== -1) {
-        // Mark current original word as missing
-        this.log(`✗ Missing word: "${originalWord}"`);
-        this.originalAnalysis[originalIndex].status = "missing";
-        results.missingWords++;
-        originalIndex++;
-        continue;
-      }
-
-      // Check if original word appears later in typed (extra word scenario)
-      const futureTypedMatch = this.findWordInTyped(
-        originalWord,
-        typedIndex + 1
+      this.log(
+        `\nComparing O[${originalIndex}]:"${originalWord}" with T[${typedIndex}]:"${typedWord}"`
       );
-      if (futureTypedMatch !== -1) {
-        // Mark current typed word as extra
-        this.log(`✗ Extra word: "${typedWord}"`);
-        this.typedAnalysis[typedIndex].status = "extra";
-        results.extraWords++;
+
+      // Check for exact sequential match
+      if (this.wordsMatch(originalWord, typedWord)) {
+        this.log(`✓ Sequential match found`);
+        this.handleWordMatch(originalIndex, typedIndex, results);
+        originalMatched[originalIndex] = true;
+        typedMatched[typedIndex] = true;
+        originalIndex++;
         typedIndex++;
         continue;
       }
 
-      // If no future matches, treat as substitution (extra typed, missing original)
-      this.log(`✗ Word substitution: "${originalWord}" → "${typedWord}"`);
-      this.originalAnalysis[originalIndex].status = "missing";
+      // Check for single character repetition (special case)
+      if (this.isSingleCharacterRepetition(typedWord)) {
+        this.log(`! Single character detected: "${typedWord}"`);
+
+        // Look ahead to see if this character matches any upcoming original word
+        let foundLaterMatch = false;
+        for (
+          let lookAhead = originalIndex;
+          lookAhead < Math.min(originalIndex + 5, this.originalWords.length);
+          lookAhead++
+        ) {
+          if (this.wordsMatch(this.originalWords[lookAhead], typedWord)) {
+            this.log(
+              `! Single character "${typedWord}" matches original word at position ${lookAhead}`
+            );
+            foundLaterMatch = true;
+            break;
+          }
+        }
+
+        // If single character doesn't match any nearby original word, mark as extra
+        if (!foundLaterMatch) {
+          this.log(`✗ Single character "${typedWord}" marked as extra`);
+          this.typedAnalysis[typedIndex].status = "extra";
+          results.extraWords++;
+          typedMatched[typedIndex] = true;
+          typedIndex++;
+          continue;
+        }
+      }
+
+      // Check for word reversal (swap) with next word
+      if (
+        originalIndex + 1 < this.originalWords.length &&
+        typedIndex + 1 < this.typedWords.length &&
+        !originalMatched[originalIndex] &&
+        !originalMatched[originalIndex + 1] &&
+        !typedMatched[typedIndex] &&
+        !typedMatched[typedIndex + 1]
+      ) {
+        const nextOriginalWord = this.originalWords[originalIndex + 1];
+        const nextTypedWord = this.typedWords[typedIndex + 1];
+
+        if (
+          this.wordsMatch(originalWord, nextTypedWord) &&
+          this.wordsMatch(nextOriginalWord, typedWord)
+        ) {
+          this.log(
+            `✓ Reversed pair found: "${originalWord} ${nextOriginalWord}" ↔ "${typedWord} ${nextTypedWord}"`
+          );
+
+          this.handleReversal(
+            originalIndex,
+            originalIndex + 1,
+            typedIndex,
+            typedIndex + 1,
+            results
+          );
+
+          originalMatched[originalIndex] = true;
+          originalMatched[originalIndex + 1] = true;
+          typedMatched[typedIndex] = true;
+          typedMatched[typedIndex + 1] = true;
+
+          originalIndex += 2;
+          typedIndex += 2;
+          continue;
+        }
+      }
+
+      // Look for this typed word in nearby original positions (limited window)
+      let foundMatch = false;
+      const searchWindow = Math.min(
+        originalIndex + 10,
+        this.originalWords.length
+      );
+
+      for (
+        let searchIndex = originalIndex;
+        searchIndex < searchWindow;
+        searchIndex++
+      ) {
+        if (
+          !originalMatched[searchIndex] &&
+          this.wordsMatch(typedWord, this.originalWords[searchIndex])
+        ) {
+          this.log(
+            `✓ Out-of-order match: "${typedWord}" found at original position ${searchIndex}`
+          );
+
+          // Mark skipped words as missing (but be more conservative)
+          for (
+            let missedIndex = originalIndex;
+            missedIndex < searchIndex;
+            missedIndex++
+          ) {
+            if (!originalMatched[missedIndex]) {
+              this.log(`✗ Missing word: "${this.originalWords[missedIndex]}"`);
+              this.originalAnalysis[missedIndex].status = "missing";
+              results.missingWords++;
+              originalMatched[missedIndex] = true;
+            }
+          }
+
+          this.handleWordMatch(searchIndex, typedIndex, results);
+          originalMatched[searchIndex] = true;
+          typedMatched[typedIndex] = true;
+          originalIndex = searchIndex + 1;
+          foundMatch = true;
+          break;
+        }
+      }
+
+      if (foundMatch) {
+        typedIndex++;
+        continue;
+      }
+
+      // If no match found, mark as extra and continue
+      this.log(`✗ Extra word: "${typedWord}"`);
       this.typedAnalysis[typedIndex].status = "extra";
-      results.missingWords++;
       results.extraWords++;
-      originalIndex++;
+      typedMatched[typedIndex] = true;
       typedIndex++;
     }
 
-    // Handle remaining words
-    while (originalIndex < this.originalWords.length) {
-      this.log(`✗ Missing word at end: "${this.originalWords[originalIndex]}"`);
-      this.originalAnalysis[originalIndex].status = "missing";
-      results.missingWords++;
-      originalIndex++;
+    // Phase 2: Handle remaining unmatched words with frequency-based matching
+    this.handleRemainingWords(originalMatched, typedMatched, results);
+
+    // Phase 3: Mark final unmatched words
+    for (let i = 0; i < this.originalWords.length; i++) {
+      if (!originalMatched[i]) {
+        this.log(`✗ Missing word at end: "${this.originalWords[i]}"`);
+        this.originalAnalysis[i].status = "missing";
+        results.missingWords++;
+      }
     }
 
-    while (typedIndex < this.typedWords.length) {
-      this.log(`✗ Extra word at end: "${this.typedWords[typedIndex]}"`);
-      this.typedAnalysis[typedIndex].status = "extra";
-      results.extraWords++;
-      typedIndex++;
+    for (let i = 0; i < this.typedWords.length; i++) {
+      if (!typedMatched[i]) {
+        this.log(`✗ Extra word at end: "${this.typedWords[i]}"`);
+        this.typedAnalysis[i].status = "extra";
+        results.extraWords++;
+      }
     }
   }
 
-  checkForReversal(originalIndex, typedIndex, results) {
-    if (
-      originalIndex + 1 >= this.originalWords.length ||
-      typedIndex + 1 >= this.typedWords.length
-    ) {
-      return false;
-    }
+  handleRemainingWords(originalMatched, typedMatched, results) {
+    // Try to match remaining words based on content similarity
+    for (let tIndex = 0; tIndex < this.typedWords.length; tIndex++) {
+      if (typedMatched[tIndex]) continue;
 
-    const orig1 = this.originalWords[originalIndex];
-    const orig2 = this.originalWords[originalIndex + 1];
-    const typed1 = this.typedWords[typedIndex];
-    const typed2 = this.typedWords[typedIndex + 1];
+      const typedWord = this.typedWords[tIndex];
+      let bestMatch = -1;
 
-    // Check if words are swapped
-    if (this.wordsMatch(orig1, typed2) && this.wordsMatch(orig2, typed1)) {
-      this.log(`✓ Reversed pair: "${orig1} ${orig2}" ↔ "${typed1} ${typed2}"`);
+      // Find best matching unmatched original word
+      for (let oIndex = 0; oIndex < this.originalWords.length; oIndex++) {
+        if (originalMatched[oIndex]) continue;
 
-      // Mark both as reversed
-      this.originalAnalysis[originalIndex].status = "reversed";
-      this.originalAnalysis[originalIndex + 1].status = "reversed";
-      this.typedAnalysis[typedIndex].status = "reversed";
-      this.typedAnalysis[typedIndex + 1].status = "reversed";
-
-      // Link them
-      this.originalAnalysis[originalIndex].matchedWith = typedIndex + 1;
-      this.originalAnalysis[originalIndex + 1].matchedWith = typedIndex;
-      this.typedAnalysis[typedIndex].matchedWith = originalIndex + 1;
-      this.typedAnalysis[typedIndex + 1].matchedWith = originalIndex;
-
-      results.reversedPairs++;
-      results.correctWords += 2; // Words are correct, just in wrong order
-
-      // Check for case differences in reversed words
-      if (orig1 !== typed2 && orig1.toLowerCase() === typed2.toLowerCase()) {
-        results.caseMistakes++;
-      }
-      if (orig2 !== typed1 && orig2.toLowerCase() === typed1.toLowerCase()) {
-        results.caseMistakes++;
+        if (this.wordsMatch(typedWord, this.originalWords[oIndex])) {
+          bestMatch = oIndex;
+          break;
+        }
       }
 
-      return true;
+      if (bestMatch !== -1) {
+        this.log(
+          `✓ Late match: "${typedWord}" with "${this.originalWords[bestMatch]}"`
+        );
+        this.handleWordMatch(bestMatch, tIndex, results);
+        originalMatched[bestMatch] = true;
+        typedMatched[tIndex] = true;
+      }
     }
+  }
 
-    return false;
+  handleWordMatch(originalIndex, typedIndex, results) {
+    const originalWord = this.originalWords[originalIndex];
+    const typedWord = this.typedWords[typedIndex];
+
+    if (originalWord === typedWord) {
+      // Exact match
+      this.log(`✓ Exact match: "${originalWord}"`);
+      this.markAsCorrect(originalIndex, typedIndex, results);
+    } else if (this.wordsMatch(originalWord, typedWord)) {
+      // Case or punctuation difference
+      this.log(`✓ Match with differences: "${originalWord}" vs "${typedWord}"`);
+      this.markAsCaseError(originalIndex, typedIndex, results);
+    }
+  }
+
+  handleReversal(orig1Index, orig2Index, typed1Index, typed2Index, results) {
+    const orig1 = this.originalWords[orig1Index];
+    const orig2 = this.originalWords[orig2Index];
+    const typed1 = this.typedWords[typed1Index];
+    const typed2 = this.typedWords[typed2Index];
+
+    // Mark both as reversed
+    this.originalAnalysis[orig1Index].status = "reversed";
+    this.originalAnalysis[orig2Index].status = "reversed";
+    this.typedAnalysis[typed1Index].status = "reversed";
+    this.typedAnalysis[typed2Index].status = "reversed";
+
+    // Link them
+    this.originalAnalysis[orig1Index].matchedWith = typed2Index;
+    this.originalAnalysis[orig2Index].matchedWith = typed1Index;
+    this.typedAnalysis[typed1Index].matchedWith = orig2Index;
+    this.typedAnalysis[typed2Index].matchedWith = orig1Index;
+
+    results.reversedPairs++;
+    results.correctWords += 2; // Words are correct, just in wrong order
+
+    // Check for case differences in reversed words
+    if (orig1 !== typed2 && this.wordsMatch(orig1, typed2)) {
+      results.caseMistakes++;
+      this.originalAnalysis[orig1Index].status = "reversed-case";
+    }
+    if (orig2 !== typed1 && this.wordsMatch(orig2, typed1)) {
+      results.caseMistakes++;
+      this.originalAnalysis[orig2Index].status = "reversed-case";
+    }
   }
 
   markAsCorrect(originalIndex, typedIndex, results) {
@@ -244,28 +403,6 @@ class AdvancedTypingChecker {
     this.typedAnalysis[typedIndex].matchedWith = originalIndex;
     results.correctWords++;
     results.caseMistakes++;
-  }
-
-  findWordInOriginal(word, startIndex) {
-    for (let i = startIndex; i < this.originalWords.length; i++) {
-      if (this.wordsMatch(word, this.originalWords[i])) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  findWordInTyped(word, startIndex) {
-    for (let i = startIndex; i < this.typedWords.length; i++) {
-      if (this.wordsMatch(word, this.typedWords[i])) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  wordsMatch(word1, word2) {
-    return word1.toLowerCase() === word2.toLowerCase();
   }
 
   calculateCharacterAccuracy() {
@@ -324,7 +461,7 @@ class AdvancedTypingChecker {
   }
 }
 
-// Display Functions
+// Display Functions (unchanged)
 function highlightWords(words, analysis, containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -337,7 +474,14 @@ function highlightWords(words, analysis, containerId) {
     analysis.forEach((item, index) => {
       const word = escapeHtml(item.word);
       const status = item.status;
-      html += `<span class="word ${status}" data-index="${index}" title="Status: ${status}">${word}</span>`;
+      let cssClass = status;
+
+      // Add specific styling for different types
+      if (status === "reversed-case") {
+        cssClass = "reversed case-error";
+      }
+
+      html += `<span class="word ${cssClass}" data-index="${index}" title="Status: ${status}">${word}</span>`;
     });
   }
 
@@ -387,9 +531,6 @@ function updateStats(results) {
     halfMistakes: "halfMistakes",
     fullMistakes: "fullMistakes",
     totalWords: "totalWords",
-    quickCorrect: "quickCorrect",
-    quickHalf: "quickHalf",
-    quickFull: "quickFull",
     reversed: "reversed",
     extra: "extraWords",
     extraSpaces: "extraSpaces",
@@ -403,34 +544,9 @@ function updateStats(results) {
     if (element) {
       if (key === "charAccuracy") {
         element.textContent = results[key] + "%";
-      } else if (key.startsWith("quick")) {
-        const statKey = key.replace("quick", "").toLowerCase();
-        const mapping = {
-          correct: "correctWords",
-          half: "halfMistakes",
-          full: "fullMistakes",
-        };
-        element.textContent = results[mapping[statKey]] || 0;
       } else {
         element.textContent = results[key] || 0;
       }
-    }
-  });
-
-  // Update breakdown values
-  const breakdownElements = {
-    reversed: results.reversedPairs,
-    extra: results.extraWords,
-    extraSpaces: results.extraSpaces,
-    caseMistakes: results.caseMistakes,
-    missing: results.missingWords,
-    charAccuracy: results.characterAccuracy + "%",
-  };
-
-  Object.entries(breakdownElements).forEach(([id, value]) => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.textContent = value;
     }
   });
 }
@@ -500,7 +616,7 @@ function checkTyping() {
   }
 }
 
-// Event Listeners and Initialization
+// Event Listeners and Initialization (unchanged)
 document.addEventListener("DOMContentLoaded", function () {
   // Auto-check if sample data is present
   const originalInput = document.getElementById("original");
@@ -567,16 +683,3 @@ window.TypingChecker = {
   check: checkTyping,
   AdvancedTypingChecker: AdvancedTypingChecker,
 };
-
-
-let analysisStartTime;
-function startAnalysis() {
-  analysisStartTime = performance.now();
-}
-
-function endAnalysis() {
-  if (analysisStartTime) {
-    const duration = performance.now() - analysisStartTime;
-    console.log(`Analysis completed in ${duration.toFixed(2)}ms`);
-  }
-}
