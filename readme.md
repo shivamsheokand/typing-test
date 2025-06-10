@@ -1,8 +1,8 @@
 # Typing Test ⌨️
 
 ![Typing Test Screenshot](./assets/image.png)
-![Typing Test Screenshot](./assets/image1.png)
-![Typing Test Screenshot](./assets/image2.png)
+![Typing Test Screenshot](./assets/img1.png)
+![Typing Test Screenshot](./assets/img.png)
 
 A simple and interactive typing speed test web app to measure your typing speed in Words Per Minute (WPM) and accuracy. Built using **HTML**, **CSS**, and **JavaScript**.
 
@@ -51,3 +51,14 @@ git clone https://github.com/shivamsheokand/typing-test.git
 cd typing-test
 open index.html
 ```
+
+## ☕ Support My Work
+
+<p align="center">
+  <a href="https://buymeacoffee.com/shivamsheokand">
+    <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black" alt="Buy Me a Coffee" />
+  </a>
+  <a href="https://paypal.me/developersam">
+    <img src="https://img.shields.io/badge/PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white" alt="PayPal" />
+  </a>
+</p>
