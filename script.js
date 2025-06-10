@@ -515,9 +515,7 @@ document.addEventListener("DOMContentLoaded", function () {
     checkTyping();
   }
 
-  // Add keyboard shortcuts
   document.addEventListener("keydown", function (e) {
-    // Ctrl/Cmd + Enter to check typing
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
       e.preventDefault();
       checkTyping();
@@ -553,11 +551,9 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Add paste event handling
   [originalInput, typedInput].forEach((input) => {
     if (input) {
       input.addEventListener("paste", function (e) {
-        // Allow paste but clean up the text
         setTimeout(() => {
           this.value = this.value.trim();
         }, 0);
@@ -572,7 +568,7 @@ window.TypingChecker = {
   AdvancedTypingChecker: AdvancedTypingChecker,
 };
 
-// Performance monitoring
+
 let analysisStartTime;
 function startAnalysis() {
   analysisStartTime = performance.now();

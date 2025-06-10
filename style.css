@@ -545,7 +545,6 @@ body {
   word-break: break-word;
 }
 
-/* Word highlighting styles */
 .word {
   display: inline-block;
   margin: 3px;
@@ -627,7 +626,6 @@ body {
   line-height: 1.5;
 }
 
-/* Responsive Design */
 @media (max-width: 1024px) {
   .accuracy-display {
     flex-direction: column;
