@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Advanced Typing Accuracy Checker</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>⚡ Advanced Typing Checker</h1>
+        <p>
+          Professional typing analysis with intelligent word-level detection
+        </p>
+      </div>
+
+      <div class="input-section">
+        <div class="input-grid">
+          <div class="input-group">
+            <label for="original">📖 Reference Text</label>
+            <textarea
+              id="original"
+              placeholder="Paste the original text here..."
+              spellcheck="false"
+            >
+a long established fact</textarea
+            >
+          </div>
+
+          <div class="input-group">
+            <label for="typed">✍️ Your Typing</label>
+            <textarea
+              id="typed"
+              placeholder="Type your text here..."
+              spellcheck="false"
+            >
+long a established hello fact</textarea
+            >
+          </div>
+        </div>
+
+        <button class="check-btn" onclick="checkTyping()">
+          <span class="btn-icon">🔬</span>
+          <span class="btn-text">Analyze Performance</span>
+        </button>
+      </div>
+
+      <div class="results" id="results">
+        <div class="accuracy-display">
+          <div class="accuracy-circle" id="accuracyCircle">
+            <div class="accuracy-text" id="accuracyText">0%</div>
+          </div>
+          <div class="accuracy-info">
+            <div class="accuracy-title">Performance Score</div>
+            <div class="accuracy-subtitle">Your typing accuracy analysis</div>
+            <div class="quick-stats">
+              <div class="quick-stat correct">
+                <div class="quick-stat-number" id="quickCorrect">0</div>
+                <div class="quick-stat-label">Perfect</div>
+              </div>
+              <div class="quick-stat warning">
+                <div class="quick-stat-number" id="quickHalf">0</div>
+                <div class="quick-stat-label">Minor</div>
+              </div>
+              <div class="quick-stat danger">
+                <div class="quick-stat-number" id="quickFull">0</div>
+                <div class="quick-stat-label">Major</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card correct">
+            <div class="stat-number" id="correctWords">0</div>
+            <div class="stat-label">Perfect Words</div>
+          </div>
+          <div class="stat-card half">
+            <div class="stat-number" id="halfMistakes">0</div>
+            <div class="stat-label">Minor Issues</div>
+          </div>
+          <div class="stat-card full">
+            <div class="stat-number" id="fullMistakes">0</div>
+            <div class="stat-label">Major Errors</div>
+          </div>
+          <div class="stat-card info">
+            <div class="stat-number" id="totalWords">0</div>
+            <div class="stat-label">Total Words</div>
+          </div>
+        </div>
+
+        <div class="breakdown-section">
+          <div class="breakdown-title">📈 Detailed Breakdown</div>
+          <div class="breakdown-grid">
+            <div class="breakdown-item">
+              <span class="breakdown-label">Word Reversals</span>
+              <span class="breakdown-value value-danger" id="reversed">0</span>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-label">Extra Words</span>
+              <span class="breakdown-value value-danger" id="extra">0</span>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-label">Extra Spaces</span>
+              <span class="breakdown-value value-danger" id="extraSpaces"
+                >0</span
+              >
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-label">Case Errors</span>
+              <span class="breakdown-value value-warning" id="caseMistakes"
+                >0</span
+              >
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-label">Missing Words</span>
+              <span class="breakdown-value value-warning" id="missing">0</span>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-label">Character Match</span>
+              <span class="breakdown-value value-info" id="charAccuracy"
+                >0%</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <div class="comparison-section">
+          <div class="legend">
+            <div class="legend-item">
+              <div class="legend-color correct"></div>
+              <span>Perfect Match</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color case-error"></div>
+              <span>Case Issue</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color missing"></div>
+              <span>Missing</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color extra"></div>
+              <span>Extra</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color reversed"></div>
+              <span>Reversed</span>
+            </div>
+          </div>
+
+          <div class="comparison-grid">
+            <div class="comparison-box">
+              <div class="comparison-title">📄 Reference Text</div>
+              <div class="comparison-text" id="originalDisplay"></div>
+            </div>
+            <div class="comparison-box">
+              <div class="comparison-title">✍️ Your Typing</div>
+              <div class="comparison-text" id="typedDisplay"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="debug-info" id="debugInfo"></div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
